@@ -202,7 +202,7 @@ if uploaded_file is not None:
                     "🧠 Sending campaign metrics to Gemini AI core systems..."
                 ):
                     try:
-                        model = genai.GenerativeModel("gemini-1.5-flash")
+                        model = genai.GenerativeModel("gemini-2.5-flash")
                         response = model.generate_content(ai_prompt)
 
                         with st.chat_message("assistant"):
