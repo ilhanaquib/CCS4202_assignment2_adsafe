@@ -164,7 +164,7 @@ if uploaded_file is not None:
 
                 # GEMINI GENERATIVE COMPILATION
                 st.write("---")
-                st.write("### Step 4: Live Gemini AI Consultant Insights")
+                st.write("### Step 4: Analysing Data...")
 
                 champions_text = champions_df[
                     ["Campaign/Target Name", "CPC", "CVR"]
