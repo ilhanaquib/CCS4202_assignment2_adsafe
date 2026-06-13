@@ -13,54 +13,78 @@ st.subheader("Algorithmic Budget Fencing Prototype Powered by Google Gemini")
 st.write("---")
 
 # SECURE API KEY RESOLUTION (OPTION 1)
-# Check if the key exists in Streamlit Cloud Secrets
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
 else:
-    # Local fallback option if secrets.toml doesn't exist on your machine
     st.sidebar.header("API Authentication")
-    api_key = st.sidebar.text_input(
-        "Enter Gemini API Key:",
-        type="password",
-        help="Paste your free key from Google AI Studio here for local testing.",
-    )
+    api_key = st.sidebar.text_input("Enter Gemini API Key:", type="password")
 
-# Formatting Guide expander
-with st.expander("How should my CSV file be formatted?", expanded=False):
-    st.markdown("""
-    To map your ad campaign data correctly, your uploaded CSV file must include these exact column headers:
-    * `Campaign/Target Name` : The label of the audience segment or keyword.
-    * `CPC` : Cost Per Click in local currency (e.g., RM 1.50). *Maps to the X-axis.*
-    * `CVR` : Conversion Rate expressed as a percentage value (e.g., 5.5 for 5.5%). *Maps to the Y-axis.*
-    """)
-    sample_df = pd.DataFrame(
-        {
-            "Campaign/Target Name": [
-                "KL Tech Lovers",
-                "Selangor Coffee",
-                "Penang Foodies",
-            ],
-            "CPC": [1.20, 3.80, 0.90],
-            "CVR": [6.5, 1.2, 7.8],
-        }
-    )
-    st.dataframe(sample_df, hide_index=True)
-
-# Main File Upload Interface
 st.write("### Step 1: Upload Your Performance Report")
+st.caption(
+    "Supports direct, unedited CSV exports from Google Ads Manager or Meta Ads Manager."
+)
 uploaded_file = st.file_uploader("Upload your campaign CSV file:", type=["csv"])
 
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
 
-        if "CPC" in df.columns and "CVR" in df.columns:
-            st.success("Report loaded successfully! Core targeting coordinates found.")
+        # AUTOMATIC COLUMN MAPPING MATRIX
+        name_variants = [
+            "Campaign",
+            "Campaign Name",
+            "Campaign/Target Name",
+            "Ad Set Name",
+            "Ad Set",
+            "Placement",
+        ]
+        cpc_variants = [
+            "CPC",
+            "Avg. CPC",
+            "Average CPC",
+            "Cost per inline link click (CPC)",
+            "Cost per link click",
+            "Cost Per Click",
+        ]
+        cvr_variants = [
+            "CVR",
+            "Conv. rate",
+            "Conversion Rate",
+            "Link click conversion rate",
+            "Conversion Rate (%)",
+            "Result Rate",
+        ]
 
-            if "Campaign/Target Name" not in df.columns:
-                df["Campaign/Target Name"] = [f"Segment {i+1}" for i in range(len(df))]
+        matched_name_col = next(
+            (col for col in df.columns if col in name_variants), None
+        )
+        matched_cpc_col = next((col for col in df.columns if col in cpc_variants), None)
+        matched_cvr_col = next((col for col in df.columns if col in cvr_variants), None)
 
-            points = df[["CPC", "CVR"]].values
+        if matched_cpc_col and matched_cvr_col:
+            st.success(
+                f"Parser connected! Mapping identified: Axis X = '{matched_cpc_col}', Axis Y = '{matched_cvr_col}'"
+            )
+
+            df_clean = pd.DataFrame()
+            if matched_name_col:
+                df_clean["Campaign/Target Name"] = df[matched_name_col]
+            else:
+                df_clean["Campaign/Target Name"] = [
+                    f"Segment {i+1}" for i in range(len(df))
+                ]
+
+            df_clean["CPC"] = pd.to_numeric(
+                df[matched_cpc_col].astype(str).str.replace(r"[^\d.]", "", regex=True),
+                errors="coerce",
+            )
+            df_clean["CVR"] = pd.to_numeric(
+                df[matched_cvr_col].astype(str).str.replace(r"[^\d.]", "", regex=True),
+                errors="coerce",
+            )
+            df_clean = df_clean.dropna(subset=["CPC", "CVR"]).reset_index(drop=True)
+
+            points = df_clean[["CPC", "CVR"]].values
 
             if len(np.unique(points, axis=0)) < 3:
                 st.error(
@@ -71,18 +95,15 @@ if uploaded_file is not None:
             st.write("---")
             st.write("### Step 2: Campaign Distribution Map")
 
-            if st.button("Run Convex Hull Optimizer & Expert Analysis", type="primary"):
-                # Validate API key exists before triggering code
+            if st.button("Run Convex Hull Optimizer & Ask Gemini", type="primary"):
                 if not api_key:
                     st.error(
                         "Gemini API Key not found. Please set it up in Streamlit Cloud Secrets or enter it via the sidebar fallback."
                     )
                     st.stop()
 
-                # Configure the Gemini Engine Client
                 genai.configure(api_key=api_key)
 
-                # Execute Convex Hull Algorithm
                 hull = ConvexHull(points)
                 hull_indices = hull.vertices
 
@@ -90,10 +111,9 @@ if uploaded_file is not None:
                 champions_count = len(hull_indices)
                 outliers_count = total_segments - champions_count
 
-                champions_df = df.iloc[hull_indices]
-                outliers_df = df.drop(df.index[hull_indices])
+                champions_df = df_clean.iloc[hull_indices]
+                outliers_df = df_clean.drop(df_clean.index[hull_indices])
 
-                # Financial Math Simulation Formulas
                 simulated_waste_ratio = outliers_count / total_segments
                 simulated_savings_rm = 10000 * (simulated_waste_ratio * 0.35)
 
@@ -162,9 +182,9 @@ if uploaded_file is not None:
                 ax.legend(loc="upper right")
                 st.pyplot(fig)
 
-                # GEMINI GENERATIVE COMPILATION
+                # ─── LAYMAN-TERM AI SUMMARY GENERATOR ───
                 st.write("---")
-                st.write("### Step 4: Analysing Data...")
+                st.write("### Step 4: Live Gemini AI Consultant Insights")
 
                 champions_text = champions_df[
                     ["Campaign/Target Name", "CPC", "CVR"]
@@ -178,42 +198,46 @@ if uploaded_file is not None:
                 )
 
                 ai_prompt = f"""
-                You are a premium, proprietary automated marketing intelligence system embedded within the "AdSpend SafeZones" corporate software dashboard. 
-                You are writing an executive-ready "Smart Optimization Action Report" for a business owner based on mathematical spatial geometry.
+                You are a premium, automated business assistant integrated inside the "AdSpend SafeZones" web app dashboard.
+                You are writing a practical, easy-to-understand campaign review report for a business owner who does not know advanced math or programming.
                 
-                The system successfully ran a Convex Hull geometric boundary enclosure algorithm on their targeting coordinates.
-                - Total Active Target Coordinates Evaluated: {total_segments}
-                - Verified Champions (Vertices defining the SafeZone perimeter): {champions_count}
-                - Flagged Wasteful Outliers (Unenclosed leaking coordinates): {outliers_count}
+                Our system just ran an optimization algorithm on their advertising data.
+                - Total ad target groups evaluated: {total_segments}
+                - Top-performing benchmark groups (The green "SafeZone" area): {champions_count}
+                - Inefficient, cash-wasting groups (The red "Outliers" outside the area): {outliers_count}
                 
-                Here is the raw data table for the Champion Segments:
+                Here is the data table for the good benchmark groups:
                 {champions_text}
                 
-                Here is the raw data table for the Outlier Segments:
+                Here is the data table for the wasteful outlier groups:
                 {outliers_text}
                 
-                Generate a beautifully formatted, clear report in Markdown. 
-                DO NOT speak casually, DO NOT say "Here is your report", DO NOT sign off as "Your Digital Marketing Consultant", and DO NOT sound like a chatbot. 
-                DO NOT include any emojis anywhere in your output responses.
-                Sound like an elite, premium automated SaaS platform.
+                Write a highly practical, conversational, yet professional executive review in clean Markdown format.
+                
+                CRITICAL INSTRUCTIONS:
+                - DO NOT use math/programming jargon like "Convex Hull", "vertices", "coordinates", "matrix", or "spatial geometry".
+                - Use clear, simple everyday language and analogies. Think of the green shape as a "protective safety fence" and the red dots as "leaks in their wallet".
+                - DO NOT say things like "Here is your report", "Hello business owner", or sign off with text like "Best regards".
+                - DO NOT include any emojis anywhere in your text.
 
                 Structure the report EXACTLY with these sections:
                 
-                ### EXECUTIVE AUDIT SUMMARY
-                * Write a highly polished, 2-sentence analytical briefing explaining that the Convex Hull algorithm has mapped their operational boundary frontier based on efficiency metrics (X-Axis: CPC, Y-Axis: CVR). 
-                * Explain that items outside the boundary represent statistically verifiable leaks in working capital.
+                ### AD CAMPAIGN HEALTH CHECK
+                * Write a simple 2 to 3 sentence summary explaining what the graph shows in plain English. 
+                * Explain that the green shape connects their most efficient ad campaigns to form a "Safety Fence". 
+                * Explain that any red dots outside this fence are bad investments that are draining their budget for very little return.
                 
-                ### IMMEDIATE SUSPENSION PROTOCOLS (ACTION REQUIRED)
-                * Use a blockquote (>) or a markdown warning format to list the specific Outlier names that were provided to you.
-                * For each outlier, clearly output its target name and explain why its coordinates (High CPC, Low CVR) make it dangerous to leave unpaused.
-                * Provide clear, numbered instructions on how the user should navigate their Google Ads or Meta Ads Manager dashboard to pause these exact segments immediately.
+                ### CAMPAIGNS TO PAUSE IMMEDIATELY
+                * Use a simple blockquote (>) or clear text lines to list the names of the wasteful outlier groups provided to you.
+                * For each wasteful group, explain in plain words why it is losing money (e.g., "charging you too much money for too few actual sales/results").
+                * Provide simple, step-by-step instructions telling them to log into their Google Ads or Meta Ads dashboard, find these exact groups, and click the "Pause" button right away to stop losing money.
                 
-                ### PERIMETER FRONTIFICATION & BLUEPRINT SCALING
-                * Group the provided Champion Segments into a clean markdown table showing their name, CPC, and CVR.
-                * Provide 3 clear bullet points outlining high-level optimization tactics:
-                  1. How to use the best performer as a seed for a 1% Lookalike Audience (Meta Ads).
-                  2. How to shift budget from the paused outliers onto these specific champion perimeters.
-                  3. How to use geographic and keyword clustering constraints to duplicate these high-performing coordinate properties.
+                ### HOW TO GROW YOUR SUCCESSFUL ADS
+                * Present a simple markdown table of the good benchmark groups (Name, CPC, CVR) so the user knows who their winners are.
+                * Give 3 simple, practical tips on how they can use this information to make more money, such as:
+                  1. Turning off the bad ads and moving that extra cash over to these winning ads.
+                  2. Creating new target audiences that copy the exact style, locations, or habits of their best-performing ad group.
+                  3. Setting a maximum price limit on what they are willing to pay for an ad click based on their winners.
                 """
 
                 with st.spinner(
@@ -231,7 +255,6 @@ if uploaded_file is not None:
                             f"Failed to communicate with Google AI Servers: {str(ai_err)}"
                         )
             else:
-                # Baseline map state before button click
                 fig, ax = plt.subplots(figsize=(10, 4))
                 ax.scatter(points[:, 0], points[:, 1], color="#9CA3AF", alpha=0.8, s=60)
                 ax.set_xlabel("Cost Per Click (CPC)")
@@ -242,11 +265,11 @@ if uploaded_file is not None:
                 )
         else:
             st.error(
-                "Validation Failed! Your CSV file must explicitly include 'CPC' and 'CVR' column headers."
+                "Validation Error: Could not automatically find matching CPC or Conversion Rate columns in your file header. Please ensure your report contains standard performance columns."
             )
     except Exception as e:
         st.error(f"Error compiling file properties: {str(e)}")
 else:
     st.info(
-        "Application standby state. Drag-and-drop or load a campaign spreadsheet to launch the simulation dashboard engine."
+        "Application standby state. Drag-and-drop or load an unedited Google or Meta campaign spreadsheet to launch the simulation engine."
     )
