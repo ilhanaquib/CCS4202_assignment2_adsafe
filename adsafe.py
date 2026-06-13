@@ -4,9 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Friendly and clean page configuration
-st.set_page_config(page_title="AdWise - Simple Marketing Assistant", layout="wide")
+st.set_page_config(page_title="AdLaku - Simple Marketing Assistant", layout="wide")
 
-st.title("AdWise Marketing Assistant")
+st.title("AdLaku Marketing Assistant")
 st.subheader("We read your messy ad files and show you exactly how to save money")
 st.write("---")
 
