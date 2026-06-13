@@ -9,7 +9,7 @@ import google.generativeai as genai
 st.set_page_config(page_title="AdSpend SafeZones", layout="wide")
 
 st.title("AdSpend SafeZones Optimizer")
-st.subheader("Algorithmic Budget Fencing Prototype Powered by Google Gemini")
+st.subheader("Algorithmic Budget Fencing")
 st.write("---")
 
 # SECURE API KEY RESOLUTION (OPTION 1)
@@ -95,7 +95,7 @@ if uploaded_file is not None:
             st.write("---")
             st.write("### Step 2: Campaign Distribution Map")
 
-            if st.button("Run Convex Hull Optimizer & Ask Gemini", type="primary"):
+            if st.button("Run Convex Hull Optimizer", type="primary"):
                 if not api_key:
                     st.error(
                         "Gemini API Key not found. Please set it up in Streamlit Cloud Secrets or enter it via the sidebar fallback."
@@ -184,7 +184,7 @@ if uploaded_file is not None:
 
                 # ─── LAYMAN-TERM AI SUMMARY GENERATOR ───
                 st.write("---")
-                st.write("### Step 4: Live Gemini AI Consultant Insights")
+                st.write("### Step 4: Expert Insights")
 
                 champions_text = champions_df[
                     ["Campaign/Target Name", "CPC", "CVR"]
@@ -241,7 +241,7 @@ if uploaded_file is not None:
                 """
 
                 with st.spinner(
-                    "Sending campaign metrics to Gemini AI core systems..."
+                    "Analyzing data..."
                 ):
                     try:
                         model = genai.GenerativeModel("gemini-2.5-flash")
